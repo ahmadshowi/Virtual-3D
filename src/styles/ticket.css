@@ -1,0 +1,398 @@
+/* ==========================================================================
+   Tiket masuk
+   Kertas karton hangat, tinta coklat tua, satu aksen merah stempel.
+   Lekukan perforasi dibuat dengan CSS mask; bayangan lewat drop-shadow di wrapper
+   (mask akan memotong bayangan jika diletakkan di elemen yang sama).
+   ========================================================================== */
+.entry {
+  --paper-t: #f2e9d8;
+  --ink-t: #2b241e;
+  --ink-t2: #6f6457;
+  --rule-t: rgba(43, 36, 30, 0.18);
+  --stamp: #b2412c;
+  --notch: 11px;
+
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  padding: 24px clamp(20px, 6vw, 88px);
+  overflow-y: auto;
+  background: radial-gradient(ellipse 70% 90% at 22% 55%, rgba(12, 10, 8, 0.55), rgba(12, 10, 8, 0) 70%);
+  animation: fade-in 0.8s var(--ease);
+}
+
+.mono {
+  font-family: var(--mono);
+  font-weight: 400;
+  letter-spacing: 0.02em;
+}
+
+.ticket {
+  display: flex;
+  align-items: stretch;
+  transform: rotate(-1.6deg);
+  transform-origin: 30% 60%;
+  max-width: 100%;
+}
+
+.ticket__main-wrap,
+.ticket__stub-wrap {
+  filter: drop-shadow(0 1px 0 rgba(0, 0, 0, 0.08)) drop-shadow(0 22px 34px rgba(0, 0, 0, 0.45));
+  transition:
+    transform 0.7s var(--ease),
+    opacity 0.5s var(--ease);
+}
+
+/* Tekstur kertas: noise SVG sangat tipis */
+.ticket__main,
+.ticket__stub {
+  background-color: var(--paper-t);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .3 0 0 0 0 .25 0 0 0 0 .2 0 0 0 .09 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  color: var(--ink-t);
+}
+
+.ticket__main {
+  width: min(520px, calc(100vw - 210px));
+  padding: 26px 34px 22px 32px;
+  border-radius: 6px 0 0 6px;
+  -webkit-mask:
+    radial-gradient(circle var(--notch) at 100% 0, #0000 98%, #000) top / 100% 51% no-repeat,
+    radial-gradient(circle var(--notch) at 100% 100%, #0000 98%, #000) bottom / 100% 51% no-repeat;
+  mask:
+    radial-gradient(circle var(--notch) at 100% 0, #0000 98%, #000) top / 100% 51% no-repeat,
+    radial-gradient(circle var(--notch) at 100% 100%, #0000 98%, #000) bottom / 100% 51% no-repeat;
+}
+
+.ticket__top {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11.5px;
+  text-transform: uppercase;
+  color: var(--ink-t2);
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--rule-t);
+}
+
+.ticket__title {
+  margin: 18px 0 4px;
+  font-family: var(--display);
+  font-weight: 600;
+  font-size: clamp(46px, 6vw, 68px);
+  line-height: 1;
+  letter-spacing: -0.01em;
+}
+.ticket__sub {
+  margin: 0 0 22px;
+  max-width: 34ch;
+  font-family: var(--display);
+  font-style: italic;
+  font-size: 19px;
+  line-height: 1.3;
+  color: var(--ink-t2);
+}
+
+.ticket__fields {
+  display: grid;
+  grid-template-columns: repeat(3, auto);
+  justify-content: start;
+  gap: 0;
+  margin: 0 0 22px;
+  border-top: 1px solid var(--rule-t);
+  border-bottom: 1px solid var(--rule-t);
+}
+.ticket__fields div {
+  padding: 10px 22px 10px 0;
+}
+.ticket__fields div + div {
+  padding-left: 16px;
+  border-left: 1px dashed var(--rule-t);
+}
+.ticket__fields dt {
+  font-size: 10.5px;
+  text-transform: uppercase;
+  color: var(--ink-t2);
+  margin-bottom: 3px;
+}
+.ticket__fields dd {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Pilihan "masuk sebagai" — seperti kotak centang di formulir */
+.ticket__who {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 26px;
+  margin: 0 0 20px;
+  padding: 0;
+  border: 0;
+}
+.ticket__who legend {
+  float: left;
+  width: 100%;
+  margin-bottom: 10px;
+  font-size: 10.5px;
+  text-transform: uppercase;
+  color: var(--ink-t2);
+}
+.who {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 2px 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  color: var(--ink-t);
+}
+.who__box {
+  position: relative;
+  align-self: center;
+  width: 20px;
+  height: 20px;
+  border: 1.5px solid var(--ink-t);
+  border-radius: 2px;
+}
+.who__box svg {
+  position: absolute;
+  inset: -7px -9px -3px -3px;
+  width: 30px;
+  height: 30px;
+  fill: none;
+  stroke: var(--stamp);
+  stroke-width: 2.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 30;
+  stroke-dashoffset: 30;
+  transition: stroke-dashoffset 0.35s var(--ease);
+}
+.who.is-picked .who__box svg {
+  stroke-dashoffset: 0;
+}
+.who__name {
+  font-family: var(--display);
+  font-size: 28px;
+  font-weight: 600;
+  line-height: 1;
+}
+.who__kind {
+  font-size: 11px;
+  color: var(--ink-t2);
+}
+.who:not(.is-picked) .who__name {
+  color: var(--ink-t2);
+}
+.who:focus-visible {
+  outline: 2px solid var(--stamp);
+  outline-offset: 4px;
+}
+
+.ticket__fine {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.6;
+  color: var(--ink-t2);
+}
+.fine-opt {
+  border: 0;
+  padding: 0;
+  background: none;
+  font-size: inherit;
+  color: inherit;
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-color: transparent;
+  text-underline-offset: 3px;
+}
+.fine-opt:hover {
+  color: var(--ink-t);
+}
+.fine-opt.is-on {
+  color: var(--ink-t);
+  font-weight: 500;
+  text-decoration-color: var(--stamp);
+  text-decoration-thickness: 1.5px;
+}
+.fine-opt:focus-visible {
+  outline: 1px solid var(--stamp);
+  outline-offset: 2px;
+}
+
+/* ------------------------------------------------------------------ sobekan */
+.ticket__stub {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  width: 158px;
+  height: 100%;
+  padding: 24px 16px 18px;
+  border: 0;
+  border-left: 2px dashed rgba(43, 36, 30, 0.35);
+  border-radius: 0 6px 6px 0;
+  cursor: pointer;
+  text-align: center;
+  font: inherit;
+  -webkit-mask:
+    radial-gradient(circle var(--notch) at 0 0, #0000 98%, #000) top / 100% 51% no-repeat,
+    radial-gradient(circle var(--notch) at 0 100%, #0000 98%, #000) bottom / 100% 51% no-repeat;
+  mask:
+    radial-gradient(circle var(--notch) at 0 0, #0000 98%, #000) top / 100% 51% no-repeat,
+    radial-gradient(circle var(--notch) at 0 100%, #0000 98%, #000) bottom / 100% 51% no-repeat;
+}
+.ticket__stub-wrap {
+  display: flex;
+  margin-left: -1px;
+}
+.ticket__stub-wrap:hover {
+  transform: translateX(5px) rotate(1.5deg);
+}
+.ticket__stub:focus-visible {
+  outline: none;
+}
+.ticket__stub:focus-visible .stub__tear {
+  outline: 2px solid var(--stamp);
+  outline-offset: 4px;
+}
+
+.stub__admit {
+  font-size: 12px;
+  line-height: 1.5;
+  text-transform: uppercase;
+  color: var(--ink-t);
+}
+.stub__barcode {
+  display: flex;
+  justify-content: center;
+  align-items: stretch;
+  gap: 1px;
+  height: 64px;
+  width: 100%;
+}
+.stub__barcode i {
+  display: block;
+  background: var(--ink-t);
+}
+.stub__barcode i:nth-child(3n) {
+  background: transparent;
+}
+.stub__no {
+  font-size: 13px;
+  letter-spacing: 0.12em;
+}
+.stub__tear {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 6px;
+  padding: 6px 8px;
+  border: 1.5px solid var(--stamp);
+  border-radius: 3px;
+  color: var(--stamp);
+  font-size: 11px;
+  white-space: nowrap;
+  transform: rotate(-4deg);
+  transition: background 0.2s;
+}
+.stub__tear svg {
+  width: 15px;
+  height: 15px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+}
+.ticket__stub:hover .stub__tear {
+  background: rgba(178, 65, 44, 0.08);
+}
+
+/* Animasi sobek: sobekan jatuh berputar, badan tiket turun & memudar */
+.entry.is-torn {
+  pointer-events: none;
+  background: transparent;
+  transition: background 0.6s;
+}
+.entry.is-torn .ticket__stub-wrap {
+  transform: translate(60px, 140px) rotate(24deg);
+  opacity: 0;
+}
+.entry.is-torn .ticket__main-wrap {
+  transform: translate(-30px, 40px) rotate(-3deg);
+  opacity: 0;
+  transition-delay: 0.18s;
+}
+
+@media (max-width: 640px) {
+  .entry {
+    align-items: flex-end;
+    padding: calc(16px + var(--safe-t)) 16px calc(16px + var(--safe-b));
+  }
+  .ticket__title {
+    font-size: 42px;
+  }
+  .ticket__sub {
+    font-size: 16px;
+    margin-bottom: 16px;
+  }
+  .ticket__fields {
+    margin-bottom: 16px;
+  }
+  .ticket__fields div {
+    padding: 7px 0;
+  }
+  .who__name {
+    font-size: 24px;
+  }
+  .ticket {
+    transform: none;
+  }
+  .ticket__main {
+    width: calc(100vw - 32px - 104px);
+    padding: 20px 18px 16px;
+  }
+  .ticket__fields {
+    grid-template-columns: 1fr;
+  }
+  .ticket__fields div + div {
+    padding-left: 0;
+    border-left: 0;
+    border-top: 1px dashed var(--rule-t);
+  }
+  .ticket__stub {
+    width: 104px;
+    padding: 18px 8px 14px;
+  }
+  .stub__tear {
+    font-size: 10px;
+    padding: 5px 6px;
+    gap: 4px;
+  }
+  .stub__tear svg {
+    width: 12px;
+    height: 12px;
+  }
+}
+
+/* HP mendatar: tiket diperkecil agar muat setinggi layar */
+@media (max-height: 560px) and (min-width: 641px) {
+  .entry {
+    padding: 12px calc(20px + var(--safe-r)) 12px calc(20px + var(--safe-l));
+    overflow: hidden; /* tiket di-scale, ukuran tata letaknya tetap besar */
+  }
+  .ticket {
+    transform: rotate(-1.6deg) scale(0.78);
+    transform-origin: 0 50%;
+  }
+}
+@media (max-height: 430px) and (min-width: 641px) {
+  .ticket {
+    transform: rotate(-1.2deg) scale(0.66);
+  }
+}
