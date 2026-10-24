@@ -64,6 +64,19 @@ export default function SettingsPanel() {
           <input type="checkbox" className="switch" checked={settings.sound} onChange={(e) => updateSettings({ sound: e.target.checked })} />
         </label>
 
+        {exhibition.music && (
+          <label className="settings__row settings__row--stack">
+            <span className="settings__split">
+              <span>Musik latar</span>
+              <input type="checkbox" className="switch" checked={settings.music} onChange={(e) => updateSettings({ music: e.target.checked })} />
+            </span>
+            <p className="settings__note">
+              ♪ {exhibition.music.title} — {exhibition.music.artist}
+              {!settings.sound && ' · ikut mati karena Suara dimatikan'}
+            </p>
+          </label>
+        )}
+
         <label className="settings__row settings__row--stack">
           <span className="settings__split">
             <span>Sensitivitas kamera</span>

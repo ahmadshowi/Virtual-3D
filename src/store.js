@@ -29,6 +29,7 @@ const SETTINGS_KEY = 'virtual-museum-settings-v1'
 const defaultSettings = {
   quality: isTouchDevice ? 'low' : 'medium', // 'low' | 'medium' | 'high' — HP mulai dari 'low'
   sound: true,
+  music: true,
   sensitivity: 1, // 0.4 .. 2
   invertY: false,
   showFps: false,

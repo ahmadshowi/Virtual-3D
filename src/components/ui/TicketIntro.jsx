@@ -2,6 +2,7 @@ import { useMemo, useRef, useState } from 'react'
 import { store, useStore, updateSettings } from '../../store'
 import { QUALITY } from '../../lib/quality'
 import { initAudio, playUiClick } from '../../lib/audio'
+import { playMusic } from '../../lib/music'
 import { lockPointer } from '../../hooks/useGameControls'
 import { photos } from '../../data/photos'
 import { exhibition, characters } from '../../data/exhibition'
@@ -57,6 +58,7 @@ export default function TicketIntro({ stageRef }) {
     tearing.current = true
     initAudio()
     playUiClick()
+    playMusic()
     saveVisits(visit)
     // Kunci kursor SEKARANG selagi masih dalam gestur klik (aturan browser)
     lockPointer(stageRef.current)

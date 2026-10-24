@@ -27,6 +27,19 @@ export const exhibition = {
     east: 'Sampai Hari Ini',
   },
 
+  /**
+   * Musik latar (diputar dari YouTube, butuh internet). Ambil ID dari link video:
+   * https://www.youtube.com/watch?v=EkHTsc9PU2A → 'EkHTsc9PU2A'. Hapus field ini
+   * untuk mematikan musik. Video harus mengizinkan embed.
+   */
+  music: {
+    youtubeId: 'EkHTsc9PU2A',
+    title: "I'm Yours",
+    artist: 'Jason Mraz (2008)',
+    volume: 0.35, // 0..1
+    start: 0, // detik awal lagu
+  },
+
   /** Panel teks di dinding aula */
   about: {
     title: 'Tentang ruangan ini',

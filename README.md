@@ -41,8 +41,11 @@ Semua identitas pameran ada di **`src/data/exhibition.js`**:
 | `subtitle` | Kalimat miring di bawah judul tiket |
 | `rooms` | Nama ruangan di pojok kiri atas saat menjelajah |
 | `about` | Panel teks di dinding aula |
+| `music` | Musik latar dari YouTube (`youtubeId`, `title`, `artist`, `volume`, `start`). Hapus field ini untuk mematikan musik |
 
 Nomor tiket bertambah setiap kali tiket disobek (disimpan di browser).
+
+**Musik latar** mulai diputar saat tiket disobek dan berulang terus. Lagu diputar lewat YouTube IFrame Player resmi (tidak diunduh), jadi **satu-satunya fitur yang butuh internet** — kalau offline, museum tetap jalan tanpa musik. Untuk ganti lagu, salin ID dari link YouTube (`watch?v=XXXXXXXXXXX`) ke `music.youtubeId`; pastikan video mengizinkan embed (beberapa video resmi label musik memblokirnya). Musik bisa dimatikan lewat ⚙ Pengaturan → *Musik latar*, dan ikut mati saat tombol suara dimatikan.
 
 ---
 
@@ -226,6 +229,7 @@ Seluruh arsitektur dibaca dari `src/data/museumLayout.js`. Setiap dinding adalah
 | Font Cormorant Garamond, Inter & DM Mono | Paket npm `@fontsource/*` (dibundel lokal) | SIL Open Font License 1.1 |
 | Decoder Draco (`draco/`) | Disalin dari `three/examples/jsm/libs/draco` | Apache 2.0 |
 | Suara (langkah & ambience) | Disintesis langsung dengan Web Audio API | Tanpa file, tanpa lisensi |
+| Musik latar | Diputar dari YouTube via IFrame Player API (default: Jason Mraz — *I'm Yours*, video resmi) | Tidak disalin ke proyek; hak cipta tetap milik pemilik lagu |
 
 Membuat ulang tekstur/karya placeholder (opsional, butuh Python 3 + `pip install numpy pillow`):
 ```bash

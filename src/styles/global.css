@@ -644,6 +644,7 @@ kbd {
 .settings__split {
   display: flex;
   justify-content: space-between;
+  align-items: center;
   color: var(--ink);
 }
 .settings__note {
@@ -821,4 +822,15 @@ input[type='range'] {
     animation: none !important;
     transition: none !important;
   }
+}
+
+/* Player YouTube untuk musik latar — disembunyikan di luar layar (bukan display:none, agar tetap mau memutar) */
+.music-player {
+  position: fixed;
+  left: -9999px;
+  top: 0;
+  width: 200px;
+  height: 200px;
+  opacity: 0;
+  pointer-events: none;
 }

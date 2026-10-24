@@ -9,6 +9,7 @@ import FpsCounter from './components/ui/FpsCounter'
 import { store, useStore, canControl } from './store'
 import { installInput } from './lib/input'
 import { setAudioEnabled } from './lib/audio'
+import { preloadMusic, setMusicEnabled } from './lib/music'
 import { useGameControls, lockPointer } from './hooks/useGameControls'
 
 installInput()
@@ -17,10 +18,17 @@ export default function App() {
   const stageRef = useRef(null)
   const phase = useStore((s) => s.phase)
   const sound = useStore((s) => s.settings.sound)
+  const music = useStore((s) => s.settings.music)
   const showFps = useStore((s) => s.settings.showFps)
 
   useGameControls(stageRef)
   useEffect(() => setAudioEnabled(sound), [sound])
+  useEffect(() => setMusicEnabled(sound && music), [sound, music])
+
+  // Siapkan player musik saat tiket tampil, supaya bisa langsung berbunyi saat tiket disobek
+  useEffect(() => {
+    if (phase === 'menu') preloadMusic()
+  }, [phase])
 
   // Laptop layar sentuh: ikuti input yang terakhir dipakai (jari atau mouse)
   useEffect(() => {
