@@ -46,3 +46,8 @@ export const IconEye = () => (
     <circle cx="12" cy="12" r="2.8" />
   </svg>
 )
+export const IconSeat = () => (
+  <svg {...base}>
+    <path d="M5 13h14M7 13v5M17 13v5M7 13V9.5A1.5 1.5 0 0 1 8.5 8h7A1.5 1.5 0 0 1 17 9.5V13" />
+  </svg>
+)

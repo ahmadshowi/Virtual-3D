@@ -3,7 +3,7 @@ import { store, useStore, updateSettings } from '../../store'
 import { unlockPointer, openPhoto } from '../../hooks/useGameControls'
 import ControlsList from './ControlsList'
 import TouchControls from './TouchControls'
-import { IconSound, IconMute, IconSettings, IconExit, IconEye } from './icons'
+import { IconSound, IconMute, IconSettings, IconExit, IconEye, IconSeat } from './icons'
 
 const byId = Object.fromEntries(photos.map((p) => [p.id, p]))
 
@@ -16,6 +16,8 @@ export default function HUD({ stageRef }) {
   const helpHidden = useStore((s) => s.helpHidden)
   const sound = useStore((s) => s.settings.sound)
   const touch = useStore((s) => s.touch)
+  const nearbySeat = useStore((s) => s.nearbySeat)
+  const seated = useStore((s) => s.seated)
 
   const nearbyPhoto = nearby ? byId[nearby] : null
   const overlayOpen = modalOpen || settingsOpen
@@ -50,7 +52,7 @@ export default function HUD({ stageRef }) {
           className="icon-btn"
           onClick={() => {
             unlockPointer()
-            store.set({ phase: 'menu', settingsOpen: false, openPhotoId: null, nearbyPhotoId: null })
+            store.set({ phase: 'menu', settingsOpen: false, openPhotoId: null, nearbyPhotoId: null, seated: false })
           }}
           aria-label="Keluar ke pintu masuk"
           title="Keluar ke pintu masuk"
@@ -76,7 +78,27 @@ export default function HUD({ stageRef }) {
 
       {!touch && !locked && !overlayOpen && <div className="hud__lock-hint">Klik layar untuk mengendalikan kamera dengan mouse</div>}
 
-      {nearbyPhoto && !overlayOpen && (
+      {!seated && nearbySeat && !overlayOpen && (
+        <button className="prompt" onClick={() => store.set({ seated: true })}>
+          <kbd>{touch ? <IconSeat /> : 'E'}</kbd>
+          <span className="prompt__text">
+            <span className="prompt__action">Duduk</span>
+            <span className="prompt__title">Istirahat sebentar di bangku</span>
+          </span>
+        </button>
+      )}
+
+      {seated && !nearbyPhoto && !overlayOpen && (
+        <button className="prompt" onClick={() => store.set({ seated: false })}>
+          <kbd>{touch ? <IconSeat /> : 'E'}</kbd>
+          <span className="prompt__text">
+            <span className="prompt__action">Berdiri</span>
+            <span className="prompt__title">{touch ? 'atau gerakkan joystick' : 'atau tekan W A S D'}</span>
+          </span>
+        </button>
+      )}
+
+      {nearbyPhoto && !overlayOpen && !(!seated && nearbySeat) && (
         <button className="prompt" onClick={() => openPhoto(nearbyPhoto.id)}>
           <kbd>{touch ? <IconEye /> : 'E'}</kbd>
           <span className="prompt__text">

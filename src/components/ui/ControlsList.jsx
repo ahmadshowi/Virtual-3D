@@ -3,7 +3,7 @@ const CONTROLS = [
   { keys: ['Shift'], label: 'Berlari' },
   { keys: ['Mouse'], label: 'Arah pandang' },
   { keys: ['Scroll'], label: 'Jarak kamera' },
-  { keys: ['E'], label: 'Lihat foto' },
+  { keys: ['E'], label: 'Lihat foto / duduk' },
   { keys: ['Esc'], label: 'Lepas kursor / tutup' },
 ]
 

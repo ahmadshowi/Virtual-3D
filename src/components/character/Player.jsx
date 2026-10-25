@@ -6,7 +6,7 @@ import { keys, stick, consumeMouse } from '../../lib/input'
 import { resolveCircle, raycastColliders } from '../../lib/collision'
 import { playerState } from '../../lib/playerState'
 import { photos } from '../../data/photos'
-import { spawn, WALL_HEIGHT } from '../../data/museumLayout'
+import { spawn, benches, WALL_HEIGHT } from '../../data/museumLayout'
 import { store, canControl, useStore } from '../../store'
 import { getQuality } from '../../lib/quality'
 import { exhibition, characterUrlFor } from '../../data/exhibition'
@@ -33,6 +33,13 @@ const FOV_PORTRAIT = 72 // layar HP tegak: perlebar pandangan agar ruangan tidak
 // ---- Interaksi
 const INTERACT_DIST = 2.8
 
+// ---- Duduk di bangku (dudukan ±0.55 m dalamnya, lihat Furniture.jsx)
+const SEAT_HALF_DEPTH = 0.275
+const SEAT_REACH = 0.8 // jarak maksimum dari tepi bangku untuk bisa duduk
+const SEAT_IN = 0.05 // pinggul sedikit di depan garis tengah dudukan
+const SEAT_TIME = 0.45 // durasi transisi duduk/berdiri (detik)
+const HEAD_HEIGHT_SEATED = 1.1
+
 const _v = new THREE.Vector3()
 const _dir = new THREE.Vector3()
 const _origin = new THREE.Vector3()
@@ -40,7 +47,41 @@ const _desired = new THREE.Vector3()
 const _look = new THREE.Vector3()
 const _cine = new THREE.Vector3()
 
+/**
+ * Bangku terdekat yang bisa diduduki dari posisi `pos`: titik duduk (menghadap keluar dari sisi
+ * bangku tempat pemain berdiri) dan titik berdiri di depannya. null bila tidak ada yang cukup dekat.
+ */
+function findSeat(pos) {
+  let best = null
+  for (const b of benches) {
+    const c = Math.cos(b.rotY)
+    const sn = Math.sin(b.rotY)
+    const dx = pos.x - b.x
+    const dz = pos.z - b.z
+    const lx = dx * c - dz * sn // sepanjang bangku
+    const lz = dx * sn + dz * c // melintang bangku
+    if (Math.abs(lx) > b.length / 2 + 0.1) continue
+    const edge = Math.abs(lz) - SEAT_HALF_DEPTH
+    if (edge > SEAT_REACH || (best && edge > best.edge)) continue
+    const side = Math.sign(lz) || 1
+    const sx = THREE.MathUtils.clamp(lx, -(b.length / 2 - 0.35), b.length / 2 - 0.35)
+    const toWorld = (z) => new THREE.Vector3(b.x + sx * c + z * sn, 0, b.z - sx * sn + z * c)
+    best = {
+      key: `${b.id}:${side}`,
+      edge,
+      seatPos: toWorld(side * SEAT_IN),
+      standPos: toWorld(side * (SEAT_HALF_DEPTH + RADIUS + 0.05)),
+      // model menghadap -Z pada rotasi 0 → arah hadap = normal sisi bangku
+      seatFacing: Math.atan2(-side * sn, -side * c),
+    }
+  }
+  return best
+}
+
+const smoothstep = (t) => t * t * (3 - 2 * t)
+
 function resetToSpawn(s) {
+  s.sit = null
   s.pos.set(spawn.x, 0, spawn.z)
   s.vel.set(0, 0, 0)
   s.facing = s.yaw = spawn.yaw
@@ -81,6 +122,9 @@ export default function Player() {
     cineLook: new THREE.Vector3(),
     wasPlaying: false,
     t: 0,
+    /** null | { mode: 'in' | 'seated' | 'out', t, from, f0, seatPos, standPos, seatFacing } */
+    sit: null,
+    head: HEAD_HEIGHT,
   })
 
   // Data foto untuk deteksi jarak
@@ -174,15 +218,47 @@ export default function Player() {
       }
     }
     const moving = ix !== 0 || iz !== 0
+
+    // ------------------------------------------------ duduk di bangku
+    const wantSeat = playing && store.get().seated
+    if (wantSeat && !s.sit) {
+      const seat = findSeat(s.pos)
+      if (seat) s.sit = { mode: 'in', t: 0, from: s.pos.clone(), f0: s.facing, ...seat }
+      else store.set({ seated: false })
+    } else if (s.sit && s.sit.mode !== 'out' && (!wantSeat || moving)) {
+      // Bergerak saat duduk = berdiri
+      if (wantSeat) store.set({ seated: false })
+      s.sit = { ...s.sit, mode: 'out', t: 0, from: s.pos.clone(), f0: s.facing }
+    }
+
+    if (s.sit) {
+      // Transisi duduk/berdiri: geser halus ke titik duduk/berdiri, tanpa collision
+      s.vel.set(0, 0, 0)
+      const sit = s.sit
+      sit.t = Math.min(1, sit.t + dt / SEAT_TIME)
+      const e = smoothstep(sit.t)
+      if (sit.mode === 'in') {
+        s.pos.lerpVectors(sit.from, sit.seatPos, e)
+        const diff = Math.atan2(Math.sin(sit.seatFacing - sit.f0), Math.cos(sit.seatFacing - sit.f0))
+        s.facing = sit.f0 + diff * e
+        if (sit.t >= 1) sit.mode = 'seated'
+      } else if (sit.mode === 'out') {
+        s.pos.lerpVectors(sit.from, sit.standPos, e)
+        if (sit.t >= 1) s.sit = null
+      }
+    }
+
     const running = moving && (keys.run || stickLen > 0.92)
-    const targetSpeed = moving ? (running ? RUN_SPEED : WALK_SPEED) : 0
+    const targetSpeed = moving && !s.sit ? (running ? RUN_SPEED : WALK_SPEED) : 0
     const k = 1 - Math.exp(-ACCEL * dt)
-    s.vel.x += (ix * targetSpeed - s.vel.x) * k
-    s.vel.z += (iz * targetSpeed - s.vel.z) * k
+    if (!s.sit) {
+      s.vel.x += (ix * targetSpeed - s.vel.x) * k
+      s.vel.z += (iz * targetSpeed - s.vel.z) * k
+    }
     const speed = Math.hypot(s.vel.x, s.vel.z)
 
     // Integrasi dengan sub-step agar tidak menembus dinding tipis saat berlari
-    const steps = Math.ceil((speed * dt) / 0.1) || 1
+    const steps = s.sit ? 0 : Math.ceil((speed * dt) / 0.1) || 1
     for (let i = 0; i < steps; i++) {
       s.pos.x += (s.vel.x * dt) / steps
       s.pos.z += (s.vel.z * dt) / steps
@@ -204,7 +280,8 @@ export default function Player() {
     // Animasi berdasarkan kecepatan aktual
     const anim = animRef.current
     if (anim) {
-      if (speed < 0.2) anim.play('Idle', 1)
+      if (s.sit && s.sit.mode !== 'out') anim.play('Sit', 1)
+      else if (speed < 0.2) anim.play('Idle', 1)
       else if (speed < (WALK_SPEED + RUN_SPEED) / 2) anim.play('Walk', THREE.MathUtils.clamp(speed / WALK_SPEED, 0.5, 1.4))
       else anim.play('Run', THREE.MathUtils.clamp(speed / RUN_SPEED, 0.7, 1.2))
     }
@@ -214,7 +291,10 @@ export default function Player() {
     playerState.viewDir.set(fx, 0, fz)
 
     // ------------------------------------------------ kamera orang ketiga
-    _origin.set(s.pos.x, HEAD_HEIGHT, s.pos.z)
+    // Saat duduk kamera ikut turun mengikuti tinggi kepala
+    const headTarget = s.sit && s.sit.mode !== 'out' ? HEAD_HEIGHT_SEATED : HEAD_HEIGHT
+    s.head += (headTarget - s.head) * (1 - Math.exp(-5 * dt))
+    _origin.set(s.pos.x, s.head, s.pos.z)
     const cp = Math.cos(s.pitch)
     _desired.set(
       _origin.x - fx * s.dist * cp + rx * SHOULDER,
@@ -234,7 +314,7 @@ export default function Player() {
     if (allowed < s.distCurrent) s.distCurrent = allowed
     else s.distCurrent += (allowed - s.distCurrent) * (1 - Math.exp(-4 * dt))
     _v.copy(_origin).addScaledVector(_dir, s.distCurrent)
-    _look.set(s.pos.x + rx * SHOULDER * 0.6, HEAD_HEIGHT - 0.05, s.pos.z + rz * SHOULDER * 0.6)
+    _look.set(s.pos.x + rx * SHOULDER * 0.6, s.head - 0.05, s.pos.z + rz * SHOULDER * 0.6)
 
     // Sembunyikan karakter bila kamera terlalu dekat (mis. terjepit di sudut)
     model.current.visible = s.distCurrent > 0.55
@@ -288,6 +368,9 @@ export default function Player() {
         }
       }
       if (store.get().nearbyPhotoId !== best) store.set({ nearbyPhotoId: best })
+
+      const seatKey = playing && !s.sit ? (findSeat(s.pos)?.key ?? null) : null
+      if (store.get().nearbySeat !== seatKey) store.set({ nearbySeat: seatKey })
     }
 
     // Nama ruangan untuk HUD

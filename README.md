@@ -58,6 +58,7 @@ Nomor tiket bertambah setiap kali tiket disobek (disimpan di browser).
 | **Mouse** | Mengatur arah pandang (klik layar dulu untuk mengunci kursor) |
 | **Scroll** | Mendekat/menjauhkan kamera |
 | **E** | Melihat foto saat berdiri di dekatnya (tekan lagi untuk menutup) |
+| **E** (dekat bangku) | Duduk di bangku — gerak (W A S D) atau E lagi untuk berdiri. Saat duduk, E membuka foto terdekat |
 | **Esc** | Melepas kursor / menutup modal / menutup pengaturan |
 | **H** | Menampilkan/menyembunyikan panduan kontrol |
 
@@ -160,7 +161,8 @@ Animasi Idle/Walk/Run keduanya diambil dari karakter Mixamo (`tools/animations/S
 
 - nama tulang hasil ekspor Sketchfab (`Hips_66`) dikembalikan ke nama aslinya;
 - pose rest target (pose-A) diselaraskan ke pose-T sumber per tulang, lalu rotasi dipindahkan di ruang dunia;
-- Idle "kuda-kuda" bawaan Soldier ditenangkan jadi posisi berdiri santai.
+- Idle "kuda-kuda" bawaan Soldier ditenangkan jadi posisi berdiri santai;
+- klip **Sit** (duduk) dibuat langsung dari arah tulang: pinggul setinggi dudukan bangku (`SEAT_HIP`), sudut paha/betis dihitung agar telapak kaki menapak lantai.
 
 Hasilnya sudah tersimpan di `public/models/`, jadi pipeline ini **tidak perlu dijalankan** kecuali ingin ganti avatar.
 

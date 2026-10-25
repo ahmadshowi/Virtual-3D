@@ -52,6 +52,9 @@ export const store = createStore({
   coreReady: false,
   room: 'Aula Utama',
   nearbyPhotoId: null,
+  /** Bangku terdekat yang bisa diduduki ('id:sisi') & status duduk */
+  nearbySeat: null,
+  seated: false,
   openPhotoId: null,
   pointerLocked: false,
   settingsOpen: false,

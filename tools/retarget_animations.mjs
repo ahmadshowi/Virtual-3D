@@ -28,6 +28,8 @@ const SRC_PREFIX = 'mixamorig:'
 // museum, pinggul/tulang belakang/kaki didekatkan ke pose rest agar terlihat berdiri santai.
 const IDLE_CALM = 0.6
 const CALM_BONES = /(^|:)(Hips|Spine\d?|(Left|Right)(UpLeg|Leg|Foot|ToeBase))$/
+// Tinggi sendi pinggul saat duduk (dudukan bangku di Furniture.jsx ±0.53 m)
+const SEAT_HIP = 0.6
 
 const io = new NodeIO().registerExtensions(ALL_EXTENSIONS)
 const src = await io.read(srcPath)
@@ -234,6 +236,84 @@ for (const clip of CLIPS) {
   const hs = tgt.createAnimationSampler().setInput(input).setOutput(hipOut).setInterpolation('LINEAR')
   a.addSampler(hs).addChannel(tgt.createAnimationChannel().setTargetNode(T.byName[P + 'Hips']).setTargetPath('translation').setSampler(hs))
   console.log(`${clip}: ${frames} frame, ${duration.toFixed(2)} s`)
+}
+
+// ---- Klip 'Sit': pose duduk statis, dibuat dari arah tulang (Soldier tidak punya animasi duduk).
+// Karakter menghadap -Z, kiri = -X. Pinggul diletakkan setinggi SEAT_HIP (dudukan bangku ±0.53 m),
+// lalu sudut paha/betis dihitung agar telapak kaki tetap menapak lantai.
+{
+  const v3 = (x, y, z) => new THREE.Vector3(x, y, z).normalize()
+  const pos = (n) => tgtT.pos.get(P + n)
+  /** Arah tulang di pose-T sumber (= arah tulang target di pose-T-nya) */
+  const dirOf = (name) => {
+    const c = mainChild(T, T.byName[name])
+    const a = S.byName[srcName(name)]
+    const b = c && S.byName[srcName(c.getName())]
+    return a && b ? srcT.pos.get(b.getName()).clone().sub(srcT.pos.get(a.getName())).normalize() : null
+  }
+  const want = {
+    [P + 'Spine']: v3(0, 1, 0.06),
+    [P + 'Spine1']: v3(0, 1, 0.04),
+    [P + 'Spine2']: v3(0, 1, 0),
+    [P + 'Neck']: v3(0, 1, -0.08),
+    [P + 'Head']: v3(0, 1, -0.05),
+  }
+  for (const [S_, sx] of [['Left', -1], ['Right', 1]]) {
+    const upLegY = SEAT_HIP + pos(S_ + 'UpLeg').y - pos('Hips').y
+    const L1 = pos(S_ + 'UpLeg').distanceTo(pos(S_ + 'Leg'))
+    const L2 = pos(S_ + 'Leg').distanceTo(pos(S_ + 'Foot'))
+    const drop = upLegY - pos(S_ + 'Foot').y
+    let dU = v3(sx * 0.04, -0.12, -1)
+    let dL
+    const need = drop - L1 * -dU.y
+    if (need <= L2) {
+      const c = need / L2
+      dL = new THREE.Vector3(0, -c, -Math.sqrt(1 - c * c)) // betis condong ke depan
+    } else {
+      const s = Math.min(0.8, (drop - L2) / L1)
+      dU = new THREE.Vector3(sx * 0.04, -s, -Math.sqrt(1 - s * s)).normalize() // paha menurun
+      dL = new THREE.Vector3(0, -1, 0)
+    }
+    Object.assign(want, {
+      [P + S_ + 'UpLeg']: dU,
+      [P + S_ + 'Leg']: dL,
+      [P + S_ + 'Arm']: v3(sx * 0.15, -1, -0.3),
+      [P + S_ + 'ForeArm']: v3(sx * 0.05, -0.45, -1),
+      [P + S_ + 'Hand']: v3(sx * 0.02, -0.7, -1),
+    })
+  }
+
+  const G = new Map()
+  const rotOut = new Map()
+  for (const n of T.order) {
+    const name = n.getName()
+    if (!T.isBone(n)) continue
+    const parent = T.parent.get(n)
+    const parentG = G.get(parent.getName()) ?? tgtT.rot.get(parent.getName())
+    let g
+    const d = want[name] && dirOf(name)
+    if (d) g = new THREE.Quaternion().setFromUnitVectors(d, want[name]).multiply(tgtT.rot.get(name))
+    else if (/(Hips|Foot|ToeBase)$/.test(name)) g = tgtT.rot.get(name).clone() // tegak / telapak rata
+    else g = parentG.clone().multiply(tgtT.rot.get(parent.getName()).clone().invert().multiply(tgtT.rot.get(name))) // ikut induk
+    G.set(name, g)
+    rotOut.set(name, parentG.clone().invert().multiply(g).normalize())
+  }
+
+  const a = tgt.createAnimation('Sit')
+  const input = tgt.createAccessor().setType('SCALAR').setArray(new Float32Array([0, 1])).setBuffer(buffer)
+  for (const b of bones) {
+    const q = rotOut.get(b.getName()).toArray()
+    const out = tgt.createAccessor().setType('VEC4').setArray(new Float32Array([...q, ...q])).setBuffer(buffer)
+    const s = tgt.createAnimationSampler().setInput(input).setOutput(out).setInterpolation('LINEAR')
+    a.addSampler(s).addChannel(tgt.createAnimationChannel().setTargetNode(b).setTargetPath('rotation').setSampler(s))
+  }
+  const hips = T.byName[P + 'Hips']
+  const world = new THREE.Vector3(pos('Hips').x, SEAT_HIP, pos('Hips').z)
+  const local = world.applyMatrix4(globalsMatrixOf(T, T.parent.get(hips)).invert()).toArray()
+  const hipOut = tgt.createAccessor().setType('VEC3').setArray(new Float32Array([...local, ...local])).setBuffer(buffer)
+  const hs = tgt.createAnimationSampler().setInput(input).setOutput(hipOut).setInterpolation('LINEAR')
+  a.addSampler(hs).addChannel(tgt.createAnimationChannel().setTargetNode(hips).setTargetPath('translation').setSampler(hs))
+  console.log('Sit: pose duduk statis')
 }
 
 function globalsMatrixOf(R, node) {

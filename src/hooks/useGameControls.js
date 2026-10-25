@@ -34,7 +34,7 @@ export function closePhoto(relockEl) {
 
 /**
  * Pintasan keyboard tingkat aplikasi:
- *   E   – buka foto terdekat / tutup modal
+ *   E   – duduk di bangku terdekat / buka foto terdekat / berdiri / tutup modal
  *   Esc – tutup modal / tutup pengaturan
  *   H   – tampilkan/sembunyikan panduan kontrol
  */
@@ -47,7 +47,10 @@ export function useGameControls(stageRef) {
 
       if (e.code === 'KeyE') {
         if (s.openPhotoId) closePhoto(stageRef.current)
-        else if (s.nearbyPhotoId && !s.settingsOpen) openPhoto(s.nearbyPhotoId)
+        else if (s.settingsOpen) return
+        else if (!s.seated && s.nearbySeat) store.set({ seated: true })
+        else if (s.nearbyPhotoId) openPhoto(s.nearbyPhotoId)
+        else if (s.seated) store.set({ seated: false })
       } else if (e.code === 'Escape') {
         if (s.openPhotoId) closePhoto()
         else if (s.settingsOpen) store.set({ settingsOpen: false })
