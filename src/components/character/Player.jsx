@@ -5,7 +5,6 @@ import Character, { makeBlobTexture } from './Character'
 import { keys, stick, consumeMouse } from '../../lib/input'
 import { resolveCircle, raycastColliders } from '../../lib/collision'
 import { playerState } from '../../lib/playerState'
-import { playFootstep } from '../../lib/audio'
 import { photos } from '../../data/photos'
 import { spawn, WALL_HEIGHT } from '../../data/museumLayout'
 import { store, canControl, useStore } from '../../store'
@@ -50,7 +49,7 @@ function resetToSpawn(s) {
 
 /**
  * Pemain: gerak WASD relatif kamera, collision, animasi, kamera orang ketiga,
- * deteksi foto terdekat, dan suara langkah. Seluruhnya berjalan di useFrame
+ * dan deteksi foto terdekat. Seluruhnya berjalan di useFrame
  * (tanpa setState per frame).
  */
 export default function Player() {
@@ -75,7 +74,6 @@ export default function Player() {
     pitch: 0.28,
     dist: 3.4,
     distCurrent: 3.4,
-    stepAcc: 0,
     proximityTimer: 0,
     roomTimer: 0,
     blend: 0, // 0 = kamera sinematik (menu), 1 = kamera mengikuti
@@ -210,16 +208,6 @@ export default function Player() {
       else if (speed < (WALK_SPEED + RUN_SPEED) / 2) anim.play('Walk', THREE.MathUtils.clamp(speed / WALK_SPEED, 0.5, 1.4))
       else anim.play('Run', THREE.MathUtils.clamp(speed / RUN_SPEED, 0.7, 1.2))
     }
-
-    // Suara langkah sesuai jarak tempuh
-    if (speed > 0.3) {
-      s.stepAcc += speed * dt
-      const stride = speed > 3 ? 1.25 : 0.72
-      if (s.stepAcc > stride) {
-        s.stepAcc = 0
-        playFootstep(speed > 3)
-      }
-    } else s.stepAcc = 0.5
 
     playerState.position.copy(s.pos)
     playerState.speed = speed

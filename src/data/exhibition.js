@@ -29,13 +29,13 @@ export const exhibition = {
 
   /**
    * Musik latar (diputar dari YouTube, butuh internet). Ambil ID dari link video:
-   * https://www.youtube.com/watch?v=EkHTsc9PU2A → 'EkHTsc9PU2A'. Hapus field ini
+   * https://www.youtube.com/watch?v=GxldQ9eX2wo → 'GxldQ9eX2wo'. Hapus field ini
    * untuk mematikan musik. Video harus mengizinkan embed.
    */
   music: {
-    youtubeId: 'EkHTsc9PU2A',
-    title: "I'm Yours",
-    artist: 'Jason Mraz (2008)',
+    youtubeId: 'GxldQ9eX2wo',
+    title: 'Until I Found You',
+    artist: 'Stephen Sanchez',
     volume: 0.35, // 0..1
     start: 0, // detik awal lagu
   },
@@ -51,8 +51,8 @@ export const exhibition = {
 }
 
 /**
- * Model karakter yang tersedia — avatar Microsoft Rocketbox (lisensi MIT).
- * Animasi Idle/Walk/Run sudah tertanam di file GLB (lihat tools/rocketbox/).
+ * Model karakter yang tersedia (Sketchfab, CC BY — lihat README bagian 9).
+ * Animasi Idle/Walk/Run sudah tertanam di file GLB (lihat tools/retarget_animations.mjs).
  */
 export const characters = {
   male: { url: '/models/Showi.glb', label: 'cowok' },

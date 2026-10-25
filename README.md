@@ -81,9 +81,8 @@ Di HP kualitas grafis default-nya **Rendah** (bisa dinaikkan di Pengaturan).
 ```
 virtual-museum/
 ├── public/                       ← aset statis (disajikan apa adanya)
-│   ├── models/Showi.glb          ← karakter cowok (Rocketbox, animasi Idle/Walk/Run tertanam)
-│   ├── models/Fasya.glb          ← karakter cewek (Rocketbox)
-│   ├── models/LICENSE-Rocketbox.md ← lisensi MIT avatar (wajib disertakan)
+│   ├── models/Showi.glb          ← karakter cowok (Ready Player Me, animasi Idle/Walk/Run tertanam)
+│   ├── models/Fasya.glb          ← karakter cewek (Ready Player Me)
 │   ├── textures/                 ← tekstur lantai & dinding (color/normal/roughness)
 │   ├── photos/                   ← foto resolusi penuh (dimuat saat modal dibuka)
 │   │   └── thumbs/               ← versi kecil untuk tekstur di dinding
@@ -154,15 +153,24 @@ python -c "from PIL import Image;import glob,os;[ (lambda im:(im.thumbnail((768,
 
 ## 6. Karakter & Mengganti Karakter
 
-**Showi** dan **Fasya** adalah avatar dari **Microsoft Rocketbox** (Male_Adult_08 & Female_Adult_05), pustaka 115 karakter manusia realistis berlisensi MIT. Avatar Rocketbox tidak membawa animasi jalan, jadi animasi Idle/Walk/Run diambil dari karakter Mixamo (`tools/animations/Soldier.glb`) lalu di-*retarget* ke rig 3ds Max Biped milik Rocketbox:
+- **Showi** — *Casual Man -RIGGED-* (Ready Player Me) oleh NABEEL619. Rig-nya sudah ada tapi tanpa animasi.
+- **Fasya** — *Ready Player Me female character* oleh readyplayerme. Rig-nya sudah ada tapi tanpa animasi; tekstur besar dikompres ulang ke JPEG.
 
-- pose-A Rocketbox diselaraskan ke pose-T sumber per tulang, lalu rotasi dipindahkan di ruang dunia;
-- Idle "kuda-kuda" bawaan Soldier ditenangkan jadi posisi berdiri santai;
-- tekstur 2048 px TGA diperkecil ke 1024 px, dengan roughness map dari specular map dan *edge padding* pada tekstur rambut.
+Animasi Idle/Walk/Run keduanya diambil dari karakter Mixamo (`tools/animations/Soldier.glb`) lalu di-*retarget* oleh `tools/retarget_animations.mjs`:
+
+- nama tulang hasil ekspor Sketchfab (`Hips_66`) dikembalikan ke nama aslinya;
+- pose rest target (pose-A) diselaraskan ke pose-T sumber per tulang, lalu rotasi dipindahkan di ruang dunia;
+- Idle "kuda-kuda" bawaan Soldier ditenangkan jadi posisi berdiri santai.
 
 Hasilnya sudah tersimpan di `public/models/`, jadi pipeline ini **tidak perlu dijalankan** kecuali ingin ganti avatar.
 
-Kedua model dimuat di awal (±5 MB total) supaya ganti karakter di tiket langsung terlihat. Karakter juga bisa diganti saat menjelajah lewat ⚙ Pengaturan.
+Kedua model dimuat di awal (±4.6 MB total) supaya ganti karakter di tiket langsung terlihat. Karakter juga bisa diganti saat menjelajah lewat ⚙ Pengaturan.
+
+### Mengganti dengan avatar ber-rig lain (Ready Player Me / Mixamo)
+
+```bash
+node tools/retarget_animations.mjs tools/animations/Soldier.glb sumber/Karakter.glb public/models/Showi.glb
+```
 
 ### Mengganti dengan avatar Rocketbox lain
 
@@ -222,14 +230,15 @@ Seluruh arsitektur dibaca dari `src/data/museumLayout.js`. Setiap dinding adalah
 
 | Aset | Sumber | Lisensi / catatan |
 |---|---|---|
-| `models/Showi.glb`, `models/Fasya.glb` | **Microsoft Rocketbox** (github.com/microsoft/Microsoft-Rocketbox), avatar Male_Adult_08 & Female_Adult_05, dikonversi & diberi animasi oleh `tools/rocketbox/`. | **MIT** — bebas dipakai, diubah, dan dibagikan, asalkan file `public/models/LICENSE-Rocketbox.md` tetap disertakan. |
+| `models/Showi.glb` | **"Casual Man -RIGGED-"** oleh NABEEL619 (https://skfb.ly/oXXO6), dibuat dengan Ready Player Me; animasi diretarget dari Soldier.glb oleh `tools/retarget_animations.mjs`. | **CC Attribution 4.0** — nama pembuat wajib dicantumkan. |
+| `models/Fasya.glb` | **"Ready Player Me female character"** oleh readyplayerme (https://sketchfab.com/3d-models/42588cec14bb4e2ba537d6fe94ce4849); animasi diretarget dari Soldier.glb. | **CC BY-NC-SA 4.0** — cantumkan nama pembuat, **tidak untuk komersial**, turunan harus berlisensi sama. |
 | `tools/animations/Soldier.glb` (sumber animasi) | Contoh resmi Three.js; karakter & animasi dari **Mixamo** (Adobe). Hanya dipakai saat build, tidak dimuat website. | Animasi Mixamo bebas royalti untuk proyek pribadi/komersial, tetapi file aslinya tidak boleh dibagikan ulang sebagai aset mentah. |
 | Tekstur (`textures/`) | Dibuat secara prosedural oleh `tools/generate_assets.py` | Buatan sendiri — bebas dipakai |
 | Karya placeholder (`photos/`) | Dibuat secara prosedural oleh `tools/generate_assets.py` | Buatan sendiri — bebas dipakai, tinggal diganti |
 | Font Cormorant Garamond, Inter & DM Mono | Paket npm `@fontsource/*` (dibundel lokal) | SIL Open Font License 1.1 |
 | Decoder Draco (`draco/`) | Disalin dari `three/examples/jsm/libs/draco` | Apache 2.0 |
-| Suara (langkah & ambience) | Disintesis langsung dengan Web Audio API | Tanpa file, tanpa lisensi |
-| Musik latar | Diputar dari YouTube via IFrame Player API (default: Jason Mraz — *I'm Yours*, video resmi) | Tidak disalin ke proyek; hak cipta tetap milik pemilik lagu |
+| Suara (ambience & klik UI) | Disintesis langsung dengan Web Audio API | Tanpa file, tanpa lisensi |
+| Musik latar | Diputar dari YouTube via IFrame Player API (default: Stephen Sanchez — *Until I Found You*, video resmi) | Tidak disalin ke proyek; hak cipta tetap milik pemilik lagu |
 
 Membuat ulang tekstur/karya placeholder (opsional, butuh Python 3 + `pip install numpy pillow`):
 ```bash

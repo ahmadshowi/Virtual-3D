@@ -1,16 +1,19 @@
 /**
- * Retarget animasi Idle/Walk/Run dari Soldier.glb ke karakter Mixamo lain
- * (rig "mixamorig"), lalu menyimpannya sebagai GLB baru yang siap dipakai.
+ * Retarget animasi Idle/Walk/Run dari Soldier.glb ke karakter ber-rig gaya Mixamo
+ * (rig "mixamorig:*" atau tanpa prefix seperti Ready Player Me), lalu menyimpannya
+ * sebagai GLB baru yang siap dipakai.
  *
- * Kenapa perlu: walau nama tulangnya sama (rig Mixamo), orientasi tulang pinggul & bahu
- * antar karakter berbeda. Animasi dipindahkan di RUANG DUNIA dengan T-pose kedua karakter
- * sebagai acuan:  G_target(t) = G_src(t) · G_src(Tpose)⁻¹ · G_target(Tpose)
+ * Kenapa perlu: walau nama tulangnya sama, orientasi tulang antar karakter berbeda.
+ * Animasi dipindahkan di RUANG DUNIA dengan pose-T kedua karakter sebagai acuan:
+ *   G_target(t) = G_src(t) · G_src(Tpose)⁻¹ · G_target(Tpose)
+ * Bila target tidak punya klip 'TPose' (mis. bind pose-A), pose-T target dibuat otomatis:
+ * setiap tulang diputar (swing) agar arahnya sama dengan arah tulang yang sama di pose-T sumber.
  *
- * Pemakaian (sekali saja, hasilnya sudah ada di public/models):
- *   npm i -D @gltf-transform/core
- *   node tools/retarget_animations.mjs tools/animations/Soldier.glb sumber/KarakterMixamo.glb public/models/Karakter.glb
+ * Pemakaian:
+ *   node tools/retarget_animations.mjs tools/animations/Soldier.glb sumber/Karakter.glb public/models/Karakter.glb
  */
 import { NodeIO } from '@gltf-transform/core'
+import { ALL_EXTENSIONS } from '@gltf-transform/extensions'
 import * as THREE from 'three'
 
 const [srcPath, tgtPath, outPath] = process.argv.slice(2)
@@ -20,37 +23,58 @@ if (!outPath) {
 }
 const CLIPS = ['Idle', 'Walk', 'Run']
 const FPS = 30
+const SRC_PREFIX = 'mixamorig:'
+// Idle Soldier adalah kuda-kuda tentara (lutut menekuk, kaki maju-mundur). Untuk pengunjung
+// museum, pinggul/tulang belakang/kaki didekatkan ke pose rest agar terlihat berdiri santai.
+const IDLE_CALM = 0.6
+const CALM_BONES = /(^|:)(Hips|Spine\d?|(Left|Right)(UpLeg|Leg|Foot|ToeBase))$/
 
-const io = new NodeIO()
+const io = new NodeIO().registerExtensions(ALL_EXTENSIONS)
 const src = await io.read(srcPath)
 const tgt = await io.read(tgtPath)
+
+// Ekspor ulang Sketchfab menambah akhiran angka di nama tulang (Hips_66) — kembalikan ke nama aslinya
+for (const j of tgt.getRoot().listSkins().flatMap((s) => s.listJoints())) {
+  const m = j.getName().match(/^(.+)_\d+$/)
+  if (m) j.setName(m[1])
+}
 
 function rig(doc) {
   const nodes = doc.getRoot().listNodes()
   const byName = Object.fromEntries(nodes.map((n) => [n.getName(), n]))
   const parent = new Map()
   nodes.forEach((n) => n.listChildren().forEach((c) => parent.set(c, n)))
-  // Urutan topologis (induk sebelum anak), dimulai dari node 'Character'
+  // Root = node teratas scene yang memuat tulang pinggul
+  const hips = nodes.find((n) => /(^|:)Hips$/.test(n.getName()))
+  let root = hips
+  while (parent.get(root)) root = parent.get(root)
+  const prefix = hips.getName().slice(0, -'Hips'.length)
+  // Tulang = joint skin (prefix saja tidak cukup untuk rig tanpa prefix seperti Ready Player Me)
+  const joints = new Set(doc.getRoot().listSkins().flatMap((s) => s.listJoints()))
+  const isBone = (n) => joints.has(n) || (joints.size === 0 && n.getName().startsWith(prefix))
   const order = []
   const walk = (n) => {
     order.push(n)
     n.listChildren().forEach(walk)
   }
-  walk(byName.Character)
-  return { byName, parent, order }
+  walk(root)
+  return { byName, parent, order, root, prefix, isBone }
 }
 const S = rig(src)
 const T = rig(tgt)
+const P = T.prefix // prefix tulang target ('mixamorig:' atau '')
+const srcName = (tgtName) => SRC_PREFIX + tgtName.slice(P.length)
+const hasTPose = tgt.getRoot().listAnimations().some((a) => a.getName() === 'TPose')
 
 // Putar root target 180° (Y) bila karakter menghadap +Z, agar seragam menghadap -Z seperti Soldier
 const facesPlusZ = (() => {
   const g = globals(T, sampler(tgt, null), null)
-  const toe = g.pos.get('mixamorig:LeftToe_End')
-  const foot = g.pos.get('mixamorig:LeftFoot')
+  const toe = g.pos.get(P + 'LeftToe_End')
+  const foot = g.pos.get(P + 'LeftFoot')
   return toe && foot && toe.z > foot.z
 })()
 if (facesPlusZ) {
-  const c = T.byName.Character
+  const c = T.root
   const q = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI).multiply(new THREE.Quaternion(...c.getRotation()))
   c.setRotation(q.toArray())
   console.log('Root target diputar 180° agar menghadap -Z')
@@ -99,7 +123,7 @@ function globals(R, sample, t) {
       new THREE.Vector3(...sample(n, 'scale', t)),
     )
     const p = R.parent.get(n)
-    const m = p && mat.has(p) ? mat.get(p).clone().multiply(local) : rootMatrix(R, n).multiply(local)
+    const m = p && mat.has(p) ? mat.get(p).clone().multiply(local) : local
     mat.set(n, m)
     const q = new THREE.Quaternion()
     const v = new THREE.Vector3()
@@ -109,24 +133,46 @@ function globals(R, sample, t) {
   }
   return { rot, pos }
 }
-function rootMatrix(R, n) {
-  // matriks dunia dari induk-induk di atas 'Character' (umumnya identitas)
-  const m = new THREE.Matrix4()
-  let p = R.parent.get(n)
-  const chain = []
-  while (p) {
-    chain.unshift(p)
-    p = R.parent.get(p)
-  }
-  for (const x of chain)
-    m.multiply(new THREE.Matrix4().compose(new THREE.Vector3(...x.getTranslation()), new THREE.Quaternion(...x.getRotation()), new THREE.Vector3(...x.getScale())))
-  return m
+
+/** Anak "utama" sebuah tulang untuk menentukan arah tulang (jari tengah untuk tangan, dst.) */
+function mainChild(R, node) {
+  const kids = node.listChildren().filter((c) => R.isBone(c) && !/Eye$/.test(c.getName()))
+  if (!kids.length) return null
+  const prefer = ['Spine', 'Neck', 'Head', 'HandMiddle1', 'Leg', 'Foot', 'ToeBase']
+  return kids.find((k) => prefer.some((p) => k.getName().endsWith(p) && !k.getName().endsWith('UpLeg'))) ?? kids[0]
 }
 
 const srcT = globals(S, sampler(src, 'TPose'), 0)
-const tgtT = globals(T, sampler(tgt, 'TPose'), 0)
-const hipRatio = tgtT.pos.get('mixamorig:Hips').y / srcT.pos.get('mixamorig:Hips').y
-const bones = T.order.filter((n) => n.getName().startsWith('mixamorig:'))
+const tgtT = hasTPose ? globals(T, sampler(tgt, 'TPose'), 0) : syntheticTPose()
+
+/** Pose-T buatan: G_T(bone) = swing(arah_rest → arah_srcT) · G_rest(bone) */
+function syntheticTPose() {
+  const rest = globals(T, sampler(tgt, null), null)
+  const rot = new Map(rest.rot)
+  for (const n of T.order) {
+    const name = n.getName()
+    if (!T.isBone(n) || /Hips$/.test(name)) continue
+    const child = mainChild(T, n)
+    const sNode = S.byName[srcName(name)]
+    const sChild = child && S.byName[srcName(child.getName())]
+    let swing
+    if (child && sNode && sChild) {
+      const dRest = rest.pos.get(child.getName()).clone().sub(rest.pos.get(name)).normalize()
+      const dSrc = srcT.pos.get(sChild.getName()).clone().sub(srcT.pos.get(sNode.getName())).normalize()
+      swing = new THREE.Quaternion().setFromUnitVectors(dRest, dSrc)
+    } else {
+      // Ujung rantai: ikuti swing induknya
+      const p = T.parent.get(n).getName()
+      swing = rot.get(p).clone().multiply(rest.rot.get(p).clone().invert())
+    }
+    rot.set(name, swing.multiply(rest.rot.get(name)).normalize())
+  }
+  console.log('Target tanpa klip TPose → pose-T dibuat dari arah tulang')
+  return { rot, pos: rest.pos }
+}
+
+const hipRatio = tgtT.pos.get(P + 'Hips').y / srcT.pos.get(SRC_PREFIX + 'Hips').y
+const bones = T.order.filter((n) => T.isBone(n) && S.byName[srcName(n.getName())])
 
 // Hapus animasi lama di target
 tgt.getRoot().listAnimations().forEach((a) => a.dispose())
@@ -148,12 +194,17 @@ for (const clip of CLIPS) {
     const tg = new Map() // global rotasi target yang sudah dihitung
     for (const b of bones) {
       const name = b.getName()
-      const delta = sg.rot.get(name).clone().multiply(srcT.rot.get(name).clone().invert())
-      const G = delta.multiply(tgtT.rot.get(name))
-      tg.set(name, G)
+      const sn = srcName(name)
+      const delta = sg.rot.get(sn).clone().multiply(srcT.rot.get(sn).clone().invert())
+      let G = delta.multiply(tgtT.rot.get(name))
       const parent = T.parent.get(b)
       const parentG = tg.get(parent.getName()) ?? tgtT.rot.get(parent.getName())
       const local = parentG.clone().invert().multiply(G).normalize()
+      if (clip === 'Idle' && CALM_BONES.test(name)) {
+        local.slerp(new THREE.Quaternion(...b.getRotation()), IDLE_CALM)
+        G = parentG.clone().multiply(local) // anak-anaknya mengikuti pose yang sudah ditenangkan
+      }
+      tg.set(name, G)
       // Jaga kontinuitas tanda quaternion antar frame (hindari putaran 360°)
       const arr = rotOut.get(name)
       if (f > 0) {
@@ -162,10 +213,11 @@ for (const clip of CLIPS) {
       }
       arr.set(local.toArray(), f * 4)
     }
-    // Posisi pinggul: perpindahan relatif T-pose, diskalakan sesuai tinggi pinggul
-    const d = sg.pos.get('mixamorig:Hips').clone().sub(srcT.pos.get('mixamorig:Hips')).multiplyScalar(hipRatio)
-    const world = tgtT.pos.get('mixamorig:Hips').clone().add(d)
-    const hips = T.byName['mixamorig:Hips']
+    // Posisi pinggul: perpindahan relatif pose-T, diskalakan sesuai tinggi pinggul
+    const d = sg.pos.get(SRC_PREFIX + 'Hips').clone().sub(srcT.pos.get(SRC_PREFIX + 'Hips')).multiplyScalar(hipRatio)
+    if (clip === 'Idle') d.multiplyScalar(1 - IDLE_CALM) // pinggul tidak turun sedalam kuda-kuda
+    const world = tgtT.pos.get(P + 'Hips').clone().add(d)
+    const hips = T.byName[P + 'Hips']
     const parentM = globalsMatrixOf(T, T.parent.get(hips))
     const local = world.applyMatrix4(parentM.invert())
     hipPos.set(local.toArray(), f * 3)
@@ -180,12 +232,12 @@ for (const clip of CLIPS) {
   }
   const hipOut = tgt.createAccessor().setType('VEC3').setArray(hipPos).setBuffer(buffer)
   const hs = tgt.createAnimationSampler().setInput(input).setOutput(hipOut).setInterpolation('LINEAR')
-  a.addSampler(hs).addChannel(tgt.createAnimationChannel().setTargetNode(T.byName['mixamorig:Hips']).setTargetPath('translation').setSampler(hs))
+  a.addSampler(hs).addChannel(tgt.createAnimationChannel().setTargetNode(T.byName[P + 'Hips']).setTargetPath('translation').setSampler(hs))
   console.log(`${clip}: ${frames} frame, ${duration.toFixed(2)} s`)
 }
 
 function globalsMatrixOf(R, node) {
-  // matriks dunia node pada pose rest (induk pinggul = 'Character')
+  // matriks dunia node pada pose rest
   const chain = []
   let c = node
   while (c) {
